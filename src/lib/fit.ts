@@ -12,11 +12,12 @@ const ef = new EasyFit({
  * Replays records from a FIT file.
  *
  * @param fileName
+ * @param speed    At which interval records should be replayed.
  */
-export function replayRecordsFrom(fileName: string): Observable<Record> {
+export function replayRecordsFrom(fileName: string, speed: number = 1000): Observable<Record> {
   return zip(
     getRecordsFrom(fileName),
-    timer(0, 1000),
+    timer(0, speed),
   ).pipe(map(([record]) => record))
 }
 
