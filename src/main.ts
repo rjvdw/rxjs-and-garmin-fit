@@ -25,7 +25,7 @@ zip(avgCadance$, avgSpeed$, avgHeartRate$)
   )
   .subscribe(console.log)
 
-function slidingAverage(windowSize: 10): OperatorFunction<number, number> {
+function slidingAverage(windowSize: number = 10): OperatorFunction<number, number> {
   return pipe(
     scan<number, number[]>((values, value) => values.slice(1 - windowSize).concat(value), []),
     filter(values => values.length === windowSize),
