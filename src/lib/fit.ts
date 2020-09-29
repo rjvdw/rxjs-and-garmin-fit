@@ -1,5 +1,5 @@
 import fs from 'fs'
-import EasyFit, { Activity, Record } from 'easy-fit'
+import EasyFit, { Activity } from 'easy-fit'
 import { from, Observable, timer, zip } from 'rxjs'
 import { map, mergeMap } from 'rxjs/operators'
 
@@ -8,35 +8,33 @@ const ef = new EasyFit({
   lengthUnit: 'km',
 })
 
+type Records = {
+  speed$: Observable<number>
+  cadence$: Observable<number>
+  heartRate$: Observable<number>
+}
+
 /**
  * Replays records from a FIT file.
  *
  * @param fileName
  * @param speed    At which interval records should be replayed.
  */
-export function replayRecordsFrom(fileName: string, speed: number = 1000): Observable<Record> {
-  return zip(
-    getRecordsFrom(fileName),
-    timer(0, speed),
-  ).pipe(map(([record]) => record))
-}
+export function readRecords(fileName: string, speed: number = 1000): Records {
+  const records$ = from(readFile(fileName)).pipe(mergeMap(activity => from(activity.records)))
 
-/**
- * Reads records from a FIT file.
- *
- * @param fileName
- */
-export function getRecordsFrom(fileName: string): Observable<Record> {
-  return read(fileName).pipe(mergeMap(activity => from(activity.records)))
-}
+  // FIXME: hard coding key to be either speed, cadence, or heart_rate as these all contain a number
+  const getObservableFor = (key: 'speed' | 'cadence' | 'heart_rate', interval: number): Observable<number> =>
+    zip(
+      records$.pipe(map(r => r[key])),
+      timer(0, interval),
+    ).pipe(map(([value]) => value))
 
-/**
- * Reads activities from a FIT file.
- *
- * @param fileName
- */
-export function read(fileName: string): Observable<Activity> {
-  return from(readFile(fileName))
+  return {
+    speed$: getObservableFor('speed', speed),
+    cadence$: getObservableFor('cadence', speed),
+    heartRate$: getObservableFor('heart_rate', speed),
+  }
 }
 
 async function readFile(fileName: string): Promise<Activity> {
