@@ -1,5 +1,5 @@
 import path from 'path'
-import { map, scan } from 'rxjs/operators'
+import { filter, map, scan, withLatestFrom } from 'rxjs/operators'
 import { replayRecordsFrom } from './lib/fit'
 import { OperatorFunction, pipe, zip } from 'rxjs'
 
@@ -20,14 +20,21 @@ const records$ = replayRecordsFrom(file)
 const cadence$ = records$.pipe(map(r => r.cadence))
 const speed$ = records$.pipe(map(r => r.speed))
 const heartRate$ = records$.pipe(map(r => r.heart_rate))
-const gear$ = zip(cadence$, speed$).pipe(map(([cadence, speed]) => computeGear(cadence, speed)))
+const gear$ = zip(cadence$, speed$)
+  .pipe(
+    map(([cadence, speed]) => computeGear(cadence, speed)),
+    filter(gear => gear !== undefined),
+  )
 
 const avgCadence$ = cadence$.pipe(slidingAverage(10))
 const avgSpeed$ = speed$.pipe(slidingAverage(10))
 const avgHeartRate$ = heartRate$.pipe(slidingAverage(10))
 
-zip(cadence$, speed$, avgCadence$, avgSpeed$, avgHeartRate$, gear$)
-  .subscribe(([cadence, speed, avgCadence, avgSpeed, heartRate, gear]) => {
+zip(cadence$, speed$, avgCadence$, avgSpeed$, avgHeartRate$)
+  .pipe(
+    withLatestFrom(gear$)
+  )
+  .subscribe(([[cadence, speed, avgCadence, avgSpeed, heartRate], gear]) => {
     cl`
       |cadence:        ${ fmt(cadence) } (avg: ${ fmt(avgCadence) })
       |speed:          ${ fmt(speed) } (avg: ${ fmt(avgSpeed) })
