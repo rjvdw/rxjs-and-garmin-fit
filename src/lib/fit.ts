@@ -1,7 +1,7 @@
 import fs from 'fs'
-import EasyFit, { Activity } from 'easy-fit'
-import { from, Observable, timer, zip } from 'rxjs'
-import { map, mergeMap } from 'rxjs/operators'
+import EasyFit, { Activity, Record } from 'easy-fit'
+import { from, Observable, OperatorFunction, timer, zip } from 'rxjs'
+import { map, mergeMap, pluck } from 'rxjs/operators'
 
 const ef = new EasyFit({
   speedUnit: 'km/h',
@@ -23,17 +23,16 @@ type Records = {
 export function readRecords(fileName: string, speed: number = 1000): Records {
   const records$ = from(readFile(fileName)).pipe(mergeMap(activity => from(activity.records)))
 
-  // FIXME: hard coding key to be either speed, cadence, or heart_rate as these all contain a number
-  const getObservableFor = (key: 'speed' | 'cadence' | 'heart_rate', interval: number): Observable<number> =>
+  const getObservableFor = <T>(get: OperatorFunction<Record, T>, interval: number): Observable<T> =>
     zip(
-      records$.pipe(map(r => r[key])),
-      timer(0, interval),
+      records$.pipe(get),
+      timer(Math.floor(Math.random() * speed / 10), interval),
     ).pipe(map(([value]) => value))
 
   return {
-    speed$: getObservableFor('speed', speed),
-    cadence$: getObservableFor('cadence', speed),
-    heartRate$: getObservableFor('heart_rate', speed),
+    speed$: getObservableFor(pluck('speed'), speed),
+    cadence$: getObservableFor(pluck('cadence'), speed),
+    heartRate$: getObservableFor(pluck('heart_rate'), 3 * speed),
   }
 }
 
